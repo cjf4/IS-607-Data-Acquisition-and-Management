@@ -1,0 +1,32 @@
+---
+output: html_document
+---
+#Chris Fenton Week 3 IS607 Assignment
+
+First, I'll format the github url using the RCurl package, and use it to
+download into a DF object.
+
+```{r eval=FALSE}
+library(RCurl)
+
+ds_url <- getURL("https://raw.githubusercontent.com/fivethirtyeight/data/master/
+                    daily-show-guests/daily_show_guests.csv")
+daily_show <- read.csv(text=ds_url)
+```
+
+Here I'm just going to pare down to the bare minimum, although the .csv was
+already pretty light.
+
+```{r eval=FALSE}
+daily_show_guests <- daily_show[,c(1, 4)]
+```
+
+Perhaps I want to compare 2001 to 2002, with the intent of seeing if
+the Daily Show became more political focused in the wake of 9/11.
+
+```{r eval=FALSE}
+daily_show_guests_2001 <- daily_show[daily_show$YEAR == 2001,c(1, 4:5)]
+daily_show_guests_2002 <- daily_show[daily_show$YEAR == 2002,c(1, 4:5)]
+```
+
+Now I have two objects, and I am ready to do some comparisons.
