@@ -1,0 +1,166 @@
+---
+title: "IS607 Week 4 Assignment"
+author: "Chris Fenton"
+date: "September 18, 2015"
+output: html_document
+---
+
+These problems come from the book **Automated Data Collection with R** 1st edition, Chapter 8 problems 4-8 on pages 217-218.
+
+Before working, I'll load the "stringr" package to use with the regular
+expressions.
+
+```{r}
+library(stringr)
+```
+
+###4. 
+
+*Describe the types of strings that conform to the following regular
+expressions and construct an example that is matched by the regular
+expression.*
+
+(a) [0-9]+\\\\$
+
+Answer: this expression matches a digit sequence of any length followed
+by a literal dollar sign, since the double backslash escapes the metacharacter
+meaning typically associated with the dollar sign (which is end of sentence).
+
+The string "398\$hello" returns "398$":
+```{R}
+str_extract("398$hello", "[0-9]+\\$")
+```
+
+The string "398" returns "N/A", showing again that the $ is literal:
+```{R}
+str_extract("398", "[0-9]+\\$")
+```
+
+(b) \\\\b[a-z]{1,4}\\\\b
+
+Answer: The expression is bookended by word edge characters, so it is looking
+for a single word. The word consists of any lowercase letter, and has to be
+between 1 and 4 characters long.
+
+
+```{r}
+str_extract("I am a real american", "\\b[a-z]{1,4}\\b")
+
+unlist(str_extract_all("I am a real american", "\\b[a-z]{1,4}\\b"))
+```
+
+(c) .*?\\\\.txt$
+
+This expression looks for any series of characters followed by ".txt" at the end of the string. The question mark is necessary to make the expression "ungreedy", thus
+stopping at the next match of the expression.
+
+```{r}
+str_extract("txt", ".*?\\.txt$")
+str_extract(".txt", ".*?\\.txt$")
+str_extract("jabroni.txt", ".*?\\.txt$")
+str_extract("know your role blvd jabroni.txt", ".*?\\.txt$")
+```
+
+(d) \\\\d{2}/\\\\d{2}/\\\\d{4}
+
+This looks like a date format, almost. It's the same form, however the digits
+between the forward slashes are not restricted to valid date ranges.
+
+```{r}
+str_extract("12/12/1999", "\\d{2}/\\d{2}/\\d{4}")
+str_extract("30/30/1999", "\\d{2}/\\d{2}/\\d{4}")
+str_extract("dd/dd/dddd", "\\d{2}/\\d{2}/\\d{4}")
+```
+
+(e) <(.+?)>.+?</\\\\1>
+
+This regex matches to a html/xml style tag. The first tag is any sequence of
+characters enclosed in < > braces, and the second tag are those same characters
+with a leading forward slash. There must be some character in between.
+
+```{r}
+str_extract("<head> </head>", "<(.+?)>.+?</\\1>")
+str_extract("<title>ol' chunk of coal</title>", "<(.+?)>.+?</\\1>")
+str_extract("<head>won't work<head>", "<(.+?)>.+?</\\1>")
+str_extract("<head>this neither</title>", "<(.+?)>.+?</\\1>")
+```
+
+###5.
+
+*Rewrite the expression [0-9]+\\\\$ in a way that all elements are altered
+but the expression performs the same task.*
+
+Answer: \\\\d{1,}[$]
+
+```{r}
+str_extract("398$hello", "\\d{1,}[$]")
+str_extract("398", "\\d{1,}[$]")
+```
+
+###6.
+
+*Consider the mail address chunkylover53[at]aol[dot]com*
+
+(a) *Transform the string to a standard mail format using regular expressions*
+
+```{r}
+email <- "chunkylover53[at]aol[dot]com"
+email <- str_replace(email, "\\[at\\]", "@" )
+email <- str_replace(email, "\\[dot\\]", ".")
+email
+```
+
+(b) *Imagine we are trying to extract the digits in the mail address. To do so
+we write the expression [:digit:]. Explain why this fails and correct the 
+expression.*
+
+Answer: This fails because predefined character classes must be enclosed in
+brackets. If they aren't, R will make a character class of ":digit".
+
+```{r}
+str_extract_all(email, "[[:digit:]]")
+```
+
+(c) *Instead of using the predefined character classes, we would like to use
+the predefined symbols to extract the digits in the mail address. To do so we
+write the expression \\\\D. Explain why this fails and correct the expression.*
+
+Answer: \\\\D looks at everything **but** digits. \\\\d returns digits.
+
+```{r}
+str_extract_all(email, "\\d")
+```
+
+###7. 
+
+*Consider the string <title>+++BREAKING NEWS+++</title>. We would would like
+to extract the first HTML tag. To do so we write the regular expression <.+>..
+Explain why this fails and correct the expression.*
+
+Answer: This string fails because it watched the movie *Wall Street* one too
+many times: it's too greedy. Adding the ? character after the  plus sign
+will make take the shortest possible string that will satisfy the conditions.
+
+```{r}
+html_string <- "<title>+++BREAKING NEWS+++</title>"
+str_extract(html_string, "<.+>")
+str_extract(html_string, "<.+?>")
+```
+
+###8.
+
+*Consider the string "(5-3)^2 = 5^2-2\*5\*3+ 3^2 conforms to the binomial 
+theorem" We would like to extract the formula in the string. To do so we 
+write the regular expression [^0-9=+*()]+. Explain why this fails and
+correct the expression.*
+
+Answer: Putting the character "^" at the beginning inverses the rest of the character class's contents. "-" is not really a member of the character class, since it retains its metacharacter status. If we move the carrot and the 
+dash to the end, that makes it so the class is no longer inverted and
+the dash is included in the character class.
+
+```{r}
+binomial_str <- "(5-3)^2=5^2-2*5*3+3^2 conforms to the binomial theorem."
+str_extract(binomial_str, "[^0-9=+*()]+")
+str_extract(binomial_str, "[0-9=+*()^-]+")
+
+```
