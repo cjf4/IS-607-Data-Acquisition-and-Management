@@ -1,0 +1,252 @@
+---
+title: "IS607 Project 1 - Chess"
+author: "Chris Fenton"
+date: "September 19, 2015"
+output: html_document
+---
+
+###Introduction
+
+The goal of this project is to take a text file that contains the results from
+a chess tournament, parse through the file, extract relevant data, add
+structure, and produce a .csv file.
+
+The .csv file will contain the following variables:  
+  * Player's Name  
+  * Player's State
+  * Total Number of Points  
+  * Player's Pre-Rating
+  * Average Pre Chess Rating of Opponents
+  
+I will be using the 'stringr' package for regex, rather than working with the
+default package, and will load it right off the bat.
+
+```{r}
+library(stringr)
+```
+
+###Preparing the Text
+
+My first step is to load the file using the readLines function.
+
+```{r warning=FALSE}
+chess_table <- readLines("tournamentinfo.txt")
+```
+
+Looking at the text file directly, the appears to be a good amount of structure
+before I've done anything. Also, all the relevant information appears to be 
+on one of two lines associated with each participant.
+
+With that in mind, my strategy will be to create a data frame with one
+row per participant, and add the two lines of raw text as strings as
+additional columns for that participant. That way, it will be easy to associate
+text with the participants.
+
+I do this by applying the str_detect function from the stringr package. 
+str_detect returns a logical vector that lets me identify whether or not
+each line fits my criteria (defined via regex) of whether its a first line
+or second line. I use lapply to try to keep things functional.
+
+As for the expressions, these are fairly easy to write as the text had a
+disnct pattern. The first type of line that contains data always begins with
+a number of one or two digits, and is the only type of line that has this
+pattern. The second type of line always begins with a pair of upper case
+letters, and again is the only type of line that follows this pattern.
+
+```{r}
+first_line <- unlist(lapply(chess_table, str_detect, 
+                              pattern = "^\\s+\\d{1,2}.+"))
+second_line <- unlist(lapply(chess_table, str_detect,
+                              pattern = "^\\s+[[:upper:]]{2}.+"))
+
+chess_data <- data.frame(chess_table, 
+                         first_line, 
+                         second_line, 
+                         stringsAsFactors = FALSE)
+```
+
+Now that I have a dataframe that identifies which pattern each line in the
+text file follows, I will build another dataframe that actually contains the
+data, along with 2 patterns of line for eacth participant.
+
+```{r}
+first_vector <- subset(chess_data$chess_table, first_line == TRUE)
+second_vector <- subset(chess_data$chess_table, second_line == TRUE)
+
+tourny_data <- data.frame(ID = 1:64, 
+                          line1 = first_vector, 
+                          line2 = second_vector, 
+                          stringsAsFactors = FALSE)
+```
+
+###Extracting the Data
+
+With my dataframe (tourny_data) in hand, my plan of attack will be to identify a 
+data element from the list in the introduction, examine the file to detect a 
+pattern surrounding that data in the text, extract it using str_extract, and 
+adding a vector to tourny_data.
+
+####Player Name
+
+The players name consists of several separate
+words of uppercase letters and hyphens. I can look for any number of words 
+consisting of those characters followed by a space, capped by a word that
+stops before any space (so there won't be a trailing space at the end). The
+name is always on line 1.
+```{r}
+tourny_data[,"player_name"] <- str_extract(tourny_data$line1, 
+                           "(\\b[[:upper:]-]+\\b\\s)+(\\b[[:upper:]-]+\\b){1}")
+```
+
+####Player State
+
+The state is always the first two uppercase letters on line2.
+```{r}
+tourny_data[,"state"] <- str_extract(tourny_data$line2, "[[:upper:]]{2}" )
+```
+
+####Total Points
+
+The total points are the only decimal numbers in the file, making it very easy
+to extract. I also coerce the vector to "numeric"" before adding it to the 
+dataframe, in case I want to measure it at all.
+```{r}
+tourny_data[,"points"] <- as.numeric(str_extract(tourny_data$line1, 
+                                                  "\\d(.)\\d"))
+```
+
+####Pre-Rating
+
+Finally, a challenge! Just kidding. Anyway, the pre-rating does present an issue
+in that the pre-ratings are not formatted consistently. Most players have ratings
+that are 3 or 4 digits and stand alone on line 2, but several have scores that 
+are 3 or 4 digits but are followed by a "P" and some more digits.
+
+I will first handle the majority format. I use an element of regex here called
+"lookbehind", which basically lets you detect a character without actually
+matching it. This is very useful if you know the characters you are looking for
+have a consistent border, which in my case they were a blank space. Also, in
+order to use this feature of regex in the stringr package, you have to wrap
+the expression argument in a "perl()" function call, as this changes the regex
+engine to perl.
+
+For the rest of the expression, I'm just looking for 3 or 4 digits that end a word.
+Again, I'll coerce to numeric for computational ease down the road.
+
+```{r}
+tourny_data[,"pre_rating"] <- as.numeric(str_extract(tourny_data$line2,
+                                                     perl("(?<=\\s)(\\d){3,4}\\b")))
+```
+
+So now I've added a vector onto tourny_data that either contains the player's
+pretournament rating, or NA. This is actually useful because now I can just
+subset on the NAs and handle them directly.
+
+As mentioned before, the main distinguishing characteristic of these records
+is that the score is followed by an uppercase "P". Just like I used 
+"lookbehind" above, I can use "lookahead" heare for a "P" without actually
+extracting it.
+
+```{r}
+tourny_data[is.na(tourny_data$pre_rating), 
+                            "pre_rating"] <- as.numeric(
+                                              str_extract(
+                                              subset(
+                                                tourny_data$line2, 
+                                                is.na(tourny_data$pre_rating)), 
+                                              perl("\\b\\d{3,4}(?=P)")))
+```
+
+####Average Opponent Score
+
+This part of the problem is unique in that I need to do more than just find 
+data within the text. I have to extract data from the text in order to 
+reference other data, and than do a calculation.
+
+First thing is to get the reference data, which are the opponent IDs. This
+time I will use str_extract_all as I need more than one piece of data. Luckily,
+the data is in a simple, consistent, unique pattern: any two digits followed
+by a "|" on line 1. 
+
+```{r}
+opponents <- str_extract_all(tourny_data$line1, perl("(\\d){1,2}(?=[|])"))
+opponents <- lapply(opponents, as.numeric)
+```
+
+So now I have this 'opponents' list, but it does not actually contain what I
+need, it only tells me where to look for what I need. Since each vector in the
+list will need to follow the same process, I find the best way is to write a
+function.
+
+My function, called avg_score_lookup, takes a numeric vector as input.
+It first measures the length of each vector, thus tallying the total games 
+played by a player. Next, it instatiates a vector to keep track of the total 
+pre tournament ratings of all opponents. 
+
+A for loop runs through the input opponents vector, subsets on the tourney_
+data using the opponents ID and adds the pre rating to the toal. Finally, the 
+total is divied by the number of opponents and returned, providing the average 
+opponent score.
+```{r}
+avg_score_lookup <- function(opponents) {
+  num_of_opponents <- length(opponents)
+  total_rating <- 0
+  for (i in opponents){
+      total_rating <- total_rating + tourny_data[i, "pre_rating"]
+  }
+  return(total_rating/num_of_opponents)
+}
+```
+
+With this function in hand, I can apply it to my list of opponents and 
+glue the resulting vector on to my data frame. 
+```{r}
+tourny_data[,"avg_opp_prerate"] <- unlist(lapply(opponents, avg_score_lookup))
+```
+###Finishing Up
+
+So now I have all the required data in a single data frame. Before I write
+the .csv file, I'll create a sperate data frame in order to remove the raw 
+text and the ID numbers I didn't use.
+
+```{r}
+chess_csv <- tourny_data[,4:8]
+```
+
+I'll take a quick look at the head as a final check.
+
+```{r}
+head(chess_csv)
+```
+
+Looks good, so we're ready to write.
+
+```{r}
+write.csv(chess_csv, "chess_data.csv")
+```
+
+And that's the file.
+
+###Some Analysis
+
+It'd be a shame to do all that dirty work and not at least do a little bit of
+explatory analysis.
+
+First off, I wonder where the tournament was?
+
+```{r}
+table(chess_csv$state)
+```
+
+Looks like Detroit, perhaps?
+
+Next, I'll look at the distribution of participant skill.
+
+```{r}
+summary(chess_csv$pre_rating)
+hist(chess_csv$pre_rating, breaks = 50)
+```
+
+The distribution is multimodal, left skewed, and centered around 1400. According to some
+quick online research, this is right in line with the USCF median, and a bit higher than
+the USCF mean. 
