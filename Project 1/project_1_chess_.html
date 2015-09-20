@@ -71,16 +71,16 @@ img {
 <div id="introduction" class="section level3">
 <h3>Introduction</h3>
 <p>The goal of this project is to take a text file that contains the results from a chess tournament, parse through the file, extract relevant data, add structure, and produce a .csv file.</p>
-<p>The .csv file will contain the following variables:<br /> * Player’s Name<br /> * Player’s State * Total Number of Points<br /> * Player’s Pre-Rating * Average Pre Chess Rating of Opponents</p>
-<p>I will be using the ‘stringr’ package for regex, rather than working with the default package, and will load it right off the bat.</p>
+<p>The .csv file will contain the following variables:<br /> * Player’s Name<br /> * Player’s State<br /> * Total Number of Points<br /> * Player’s Pre-Rating<br /> * Average Pre Chess Rating of Opponents</p>
+<p>I will be using the ‘stringr’ package for regex, rather than working with the default package.</p>
 <pre class="r"><code>library(stringr)</code></pre>
 </div>
 <div id="preparing-the-text" class="section level3">
 <h3>Preparing the Text</h3>
 <p>My first step is to load the file using the readLines function.</p>
 <pre class="r"><code>chess_table &lt;- readLines(&quot;tournamentinfo.txt&quot;)</code></pre>
-<p>Looking at the text file directly, the appears to be a good amount of structure before I’ve done anything. Also, all the relevant information appears to be on one of two lines associated with each participant.</p>
-<p>With that in mind, my strategy will be to create a data frame with one row per participant, and add the two lines of raw text as strings as additional columns for that participant. That way, it will be easy to associate text with the participants.</p>
+<p>Looking at the text directly, there appears to be a good amount of structure before I’ve done anything. Also, all the relevant information appears to be on one of two lines associated with each participant.</p>
+<p>With that in mind, my strategy will be to create a data frame with one row per participant, and add the two lines of raw text in strings as additional columns for that participant. That way, it will be easy to associate text with the participants.</p>
 <p>I do this by applying the str_detect function from the stringr package. str_detect returns a logical vector that lets me identify whether or not each line fits my criteria (defined via regex) of whether its a first line or second line. I use lapply to try to keep things functional.</p>
 <p>As for the expressions, these are fairly easy to write as the text had a disnct pattern. The first type of line that contains data always begins with a number of one or two digits, and is the only type of line that has this pattern. The second type of line always begins with a pair of upper case letters, and again is the only type of line that follows this pattern.</p>
 <pre class="r"><code>first_line &lt;- unlist(lapply(chess_table, str_detect, 
@@ -103,7 +103,7 @@ tourny_data &lt;- data.frame(ID = 1:64,
 </div>
 <div id="extracting-the-data" class="section level3">
 <h3>Extracting the Data</h3>
-<p>With my dataframe (tourny_data) in hand, my plan of attack will be to identify a data element from the list in the introduction, examine the file to detect a pattern surrounding that data in the text, extract it using str_extract, and adding a vector to tourny_data.</p>
+<p>With my dataframe (tourny_data) in hand, my plan of attack will be to identify a data element from the list in the introduction, examine the file to detect a pattern surrounding that data in the text, extract it using str_extract, and add a vector to tourny_data.</p>
 <div id="player-name" class="section level4">
 <h4>Player Name</h4>
 <p>The players name consists of several separate words of uppercase letters and hyphens. I can look for any number of words consisting of those characters followed by a space, capped by a word that stops before any space (so there won’t be a trailing space at the end). The name is always on line 1.</p>
@@ -123,30 +123,30 @@ tourny_data &lt;- data.frame(ID = 1:64,
 </div>
 <div id="pre-rating" class="section level4">
 <h4>Pre-Rating</h4>
-<p>Finally, a challenge! Just kidding. Anyway, the pre-rating does present an issue in that the pre-ratings are not formatted consistently. Most players have ratings that are 3 or 4 digits and stand alone on line 2, but several have scores that are 3 or 4 digits but are followed by a “P” and some more digits.</p>
-<p>I will first handle the majority format. I use an element of regex here called “lookbehind”, which basically lets you detect a character without actually matching it. This is very useful if you know the characters you are looking for have a consistent border, which in my case they were a blank space. Also, in order to use this feature of regex in the stringr package, you have to wrap the expression argument in a “perl()” function call, as this changes the regex engine to perl.</p>
+<p>Finally, a challenge! (just kidding) Anyway, the pre-rating does present an issue in that the pre-ratings are not formatted consistently. Most players have ratings that are 3 or 4 digits and stand alone on line 2, but several have scores that are 3 or 4 digits, but are followed by a “P” and some more digits.</p>
+<p>I will first handle the majority format. I use an element of regex here called “lookbehind”, which basically lets you detect a character without actually matching it. This is very useful if you know the characters you are looking for have a consistent border, which in my case are a blank space. Also, in order to use this feature of regex in the stringr package, you have to wrap the expression argument in a “perl()” function call, as this changes the regex engine to perl.</p>
 <p>For the rest of the expression, I’m just looking for 3 or 4 digits that end a word. Again, I’ll coerce to numeric for computational ease down the road.</p>
 <pre class="r"><code>tourny_data[,&quot;pre_rating&quot;] &lt;- as.numeric(str_extract(tourny_data$line2,
                                                      perl(&quot;(?&lt;=\\s)(\\d){3,4}\\b&quot;)))</code></pre>
-<p>So now I’ve added a vector onto tourny_data that either contains the player’s pretournament rating, or NA. This is actually useful because now I can just subset on the NAs and handle them directly.</p>
-<p>As mentioned before, the main distinguishing characteristic of these records is that the score is followed by an uppercase “P”. Just like I used “lookbehind” above, I can use “lookahead” heare for a “P” without actually extracting it.</p>
+<p>So now I’ve added a vector onto tourny_data that either contains the player’s pretournament rating, or NA. The NAs are actually useful because now I can subset on them and handle the differing formats directly.</p>
+<p>As mentioned before, the main distinguishing characteristic of these records is that the score is followed by an uppercase “P”. In a similar manner to “lookbehind” above, I can use “lookahead” here for a “P” without actually extracting it.</p>
 <pre class="r"><code>tourny_data[is.na(tourny_data$pre_rating), 
                             &quot;pre_rating&quot;] &lt;- as.numeric(
                                               str_extract(
-                                              subset(
-                                                tourny_data$line2, 
-                                                is.na(tourny_data$pre_rating)), 
-                                              perl(&quot;\\b\\d{3,4}(?=P)&quot;)))</code></pre>
+                                                subset(
+                                                  tourny_data$line2, 
+                                                  is.na(tourny_data$pre_rating)), 
+                                                perl(&quot;\\b\\d{3,4}(?=P)&quot;)))</code></pre>
 </div>
 <div id="average-opponent-score" class="section level4">
 <h4>Average Opponent Score</h4>
 <p>This part of the problem is unique in that I need to do more than just find data within the text. I have to extract data from the text in order to reference other data, and than do a calculation.</p>
-<p>First thing is to get the reference data, which are the opponent IDs. This time I will use str_extract_all as I need more than one piece of data. Luckily, the data is in a simple, consistent, unique pattern: any two digits followed by a “|” on line 1.</p>
+<p>First thing is to get the reference data, which are the opponent IDs. This time I will use str_extract_all as I need more than one piece of data. Luckily, the text is in a simple, consistent, unique pattern: any two digits followed by a “|” on line 1.</p>
 <pre class="r"><code>opponents &lt;- str_extract_all(tourny_data$line1, perl(&quot;(\\d){1,2}(?=[|])&quot;))
 opponents &lt;- lapply(opponents, as.numeric)</code></pre>
-<p>So now I have this ‘opponents’ list, but it does not actually contain what I need, it only tells me where to look for what I need. Since each vector in the list will need to follow the same process, I find the best way is to write a function.</p>
-<p>My function, called avg_score_lookup, takes a numeric vector as input. It first measures the length of each vector, thus tallying the total games played by a player. Next, it instatiates a vector to keep track of the total pre tournament ratings of all opponents.</p>
-<p>A for loop runs through the input opponents vector, subsets on the tourney_ data using the opponents ID and adds the pre rating to the toal. Finally, the total is divied by the number of opponents and returned, providing the average opponent score.</p>
+<p>So now I have an ‘opponents’ list, but it does not actually contain what I need, it only tells me where to look for what I need. Since each vector in the list will need to follow the same process, I find the best way forward is to write a function.</p>
+<p>My function, called avg_score_lookup, takes a numeric vector as input. It first measures the length of each vector, thus tallying the total games played by a player. Next, it instatiates an empty vector to keep track of the total pre tournament ratings of all opponents.</p>
+<p>A for loop runs through the input opponents vector, subsets on the tourney_ data using the opponents ID and adds the pre rating to the toal. Finally, the total is divided by the number of opponents and returned, providing the average opponent score.</p>
 <pre class="r"><code>avg_score_lookup &lt;- function(opponents) {
   num_of_opponents &lt;- length(opponents)
   total_rating &lt;- 0
@@ -163,7 +163,7 @@ opponents &lt;- lapply(opponents, as.numeric)</code></pre>
 <h3>Finishing Up</h3>
 <p>So now I have all the required data in a single data frame. Before I write the .csv file, I’ll create a sperate data frame in order to remove the raw text and the ID numbers I didn’t use.</p>
 <pre class="r"><code>chess_csv &lt;- tourny_data[,4:8]</code></pre>
-<p>I’ll take a quick look at the head as a final check.</p>
+<p>I’ll have a quick look at the head as a final check.</p>
 <pre class="r"><code>head(chess_csv)</code></pre>
 <pre><code>##           player_name state points pre_rating avg_opp_prerate
 ## 1            GARY HUA    ON    6.0       1794        1605.286

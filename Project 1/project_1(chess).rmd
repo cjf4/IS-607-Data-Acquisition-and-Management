@@ -13,13 +13,13 @@ structure, and produce a .csv file.
 
 The .csv file will contain the following variables:  
   * Player's Name  
-  * Player's State
+  * Player's State  
   * Total Number of Points  
-  * Player's Pre-Rating
-  * Average Pre Chess Rating of Opponents
+  * Player's Pre-Rating  
+  * Average Pre Chess Rating of Opponents  
   
 I will be using the 'stringr' package for regex, rather than working with the
-default package, and will load it right off the bat.
+default package.
 
 ```{r}
 library(stringr)
@@ -33,12 +33,12 @@ My first step is to load the file using the readLines function.
 chess_table <- readLines("tournamentinfo.txt")
 ```
 
-Looking at the text file directly, the appears to be a good amount of structure
+Looking at the text directly, there appears to be a good amount of structure
 before I've done anything. Also, all the relevant information appears to be 
 on one of two lines associated with each participant.
 
 With that in mind, my strategy will be to create a data frame with one
-row per participant, and add the two lines of raw text as strings as
+row per participant, and add the two lines of raw text in strings as
 additional columns for that participant. That way, it will be easy to associate
 text with the participants.
 
@@ -84,7 +84,7 @@ tourny_data <- data.frame(ID = 1:64,
 With my dataframe (tourny_data) in hand, my plan of attack will be to identify a 
 data element from the list in the introduction, examine the file to detect a 
 pattern surrounding that data in the text, extract it using str_extract, and 
-adding a vector to tourny_data.
+add a vector to tourny_data.
 
 ####Player Name
 
@@ -117,15 +117,15 @@ tourny_data[,"points"] <- as.numeric(str_extract(tourny_data$line1,
 
 ####Pre-Rating
 
-Finally, a challenge! Just kidding. Anyway, the pre-rating does present an issue
+Finally, a challenge! (just kidding) Anyway, the pre-rating does present an issue
 in that the pre-ratings are not formatted consistently. Most players have ratings
 that are 3 or 4 digits and stand alone on line 2, but several have scores that 
-are 3 or 4 digits but are followed by a "P" and some more digits.
+are 3 or 4 digits, but are followed by a "P" and some more digits.
 
 I will first handle the majority format. I use an element of regex here called
 "lookbehind", which basically lets you detect a character without actually
 matching it. This is very useful if you know the characters you are looking for
-have a consistent border, which in my case they were a blank space. Also, in
+have a consistent border, which in my case are a blank space. Also, in
 order to use this feature of regex in the stringr package, you have to wrap
 the expression argument in a "perl()" function call, as this changes the regex
 engine to perl.
@@ -139,22 +139,22 @@ tourny_data[,"pre_rating"] <- as.numeric(str_extract(tourny_data$line2,
 ```
 
 So now I've added a vector onto tourny_data that either contains the player's
-pretournament rating, or NA. This is actually useful because now I can just
-subset on the NAs and handle them directly.
+pretournament rating, or NA. The NAs are actually useful because now I can
+subset on them and handle the differing formats directly.
 
 As mentioned before, the main distinguishing characteristic of these records
-is that the score is followed by an uppercase "P". Just like I used 
-"lookbehind" above, I can use "lookahead" heare for a "P" without actually
+is that the score is followed by an uppercase "P". In a similar manner to
+"lookbehind" above, I can use "lookahead" here for a "P" without actually
 extracting it.
 
 ```{r}
 tourny_data[is.na(tourny_data$pre_rating), 
                             "pre_rating"] <- as.numeric(
                                               str_extract(
-                                              subset(
-                                                tourny_data$line2, 
-                                                is.na(tourny_data$pre_rating)), 
-                                              perl("\\b\\d{3,4}(?=P)")))
+                                                subset(
+                                                  tourny_data$line2, 
+                                                  is.na(tourny_data$pre_rating)), 
+                                                perl("\\b\\d{3,4}(?=P)")))
 ```
 
 ####Average Opponent Score
@@ -165,7 +165,7 @@ reference other data, and than do a calculation.
 
 First thing is to get the reference data, which are the opponent IDs. This
 time I will use str_extract_all as I need more than one piece of data. Luckily,
-the data is in a simple, consistent, unique pattern: any two digits followed
+the text is in a simple, consistent, unique pattern: any two digits followed
 by a "|" on line 1. 
 
 ```{r}
@@ -173,19 +173,19 @@ opponents <- str_extract_all(tourny_data$line1, perl("(\\d){1,2}(?=[|])"))
 opponents <- lapply(opponents, as.numeric)
 ```
 
-So now I have this 'opponents' list, but it does not actually contain what I
+So now I have an 'opponents' list, but it does not actually contain what I
 need, it only tells me where to look for what I need. Since each vector in the
-list will need to follow the same process, I find the best way is to write a
-function.
+list will need to follow the same process, I find the best way forward is to 
+write a function.
 
 My function, called avg_score_lookup, takes a numeric vector as input.
 It first measures the length of each vector, thus tallying the total games 
-played by a player. Next, it instatiates a vector to keep track of the total 
-pre tournament ratings of all opponents. 
+played by a player. Next, it instatiates an empty vector to keep track of the 
+total pre tournament ratings of all opponents. 
 
 A for loop runs through the input opponents vector, subsets on the tourney_
 data using the opponents ID and adds the pre rating to the toal. Finally, the 
-total is divied by the number of opponents and returned, providing the average 
+total is divided by the number of opponents and returned, providing the average 
 opponent score.
 ```{r}
 avg_score_lookup <- function(opponents) {
@@ -213,7 +213,7 @@ text and the ID numbers I didn't use.
 chess_csv <- tourny_data[,4:8]
 ```
 
-I'll take a quick look at the head as a final check.
+I'll have a quick look at the head as a final check.
 
 ```{r}
 head(chess_csv)
