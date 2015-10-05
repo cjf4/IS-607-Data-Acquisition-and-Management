@@ -1,0 +1,108 @@
+---
+title: "IS 607 Week 6 Assignment"
+author: "Chris Fenton"
+date: "October 4, 2015"
+output: html_document
+---
+
+The goal here is to transform a wide data set into a "tidy" one. A tidy data
+set is defined as one where each variable is a column, each observation is a
+row, and each type of observational unit is a table.
+
+I'll be using the tidyr and dplyr packages.
+
+```{r}
+library(tidyr)
+library(dplyr)
+```
+
+First I'll read in the data.
+
+```{r}
+w6 <- read.csv('week_6.csv')
+```
+
+get rid of the blank row and add in the other two missing variables.
+
+The way the data is structured I can see that the "Alaska" and "AM West" 
+observations span two lines. I'll add them to the 2nd line of each and 
+get rid of the blank middle line.
+
+```{r}
+w6[2,1] <- 'ALASKA'
+w6[5,1] <- 'AM WEST'
+w6 <- filter(w6, w6[,1] != "")
+```
+
+Since there were no headers on iehter the airline or on time/delayed columns,
+they were named X and X.1 by default. I will rename those something more 
+usable.
+
+```{r}
+names(w6)[1] <- "Airline"
+names(w6)[2] <- "timeliness"
+```
+
+If I look at the data...
+
+```{r}
+w6
+```
+
+...everything is filled in, so now I'm ready to transform via tidyr.
+
+
+I'll use piping syntax because it makes reduces the amount of typing.
+```{r}
+w6_tidy <- w6 %>% gather(city, frequency, -Airline, -timeliness) %>%
+                  spread(timeliness, frequency)
+```
+
+First I used gather() to take all columns other than airline and timeliness,
+stack them in a new column called "city", and have the new value column called
+frequency.
+
+Next, I thought it would make sense to replace the frequency column with a
+'delayed' column and a 'on time' column.
+
+Here's the result:
+
+```{r}
+w6_tidy
+```
+
+I thought about combining the airline with the ontime and delayed columns, so
+there would be a "Alaska On Time" column, "Alaska Delayed", and so forth. But
+this seemed to combine two variables in a column, thus violating the definition
+of 'tidy' data. 
+
+However it seems to me that while there are good general rules
+for what constitutes 'tidy' data, there are some areas where it is subjective,
+and one is probably best served by thinking about making it 'tidy' in terms
+of the anlysis they are trying to perform.
+
+So with that in mind, I'll add some columns to measure relative delays
+per city per airline.
+
+```{r}
+w6_tidy$total <- w6_tidy$`on time` + w6_tidy$delayed
+w6_tidy$delay_pct <- w6_tidy$delayed / w6_tidy$total
+```
+
+Now I can compare how the airlines performed in any city I want to look at
+directly.
+
+```{r}
+filter(w6_tidy, city == 'Los.Angeles')
+```
+
+So Alaska had relatively (and absolutely) fewer delays in Los Angeles.
+
+If I use the arrange() function to sort by the city, I can compare all the
+airlines at once:
+
+```{r}
+arrange(w6_tidy, city)
+```
+
+And it appears Alaska has relatively fewer delays in *every* city.
