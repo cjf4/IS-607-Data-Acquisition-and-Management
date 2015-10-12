@@ -1,0 +1,115 @@
+```{r echo=FALSE}
+library(tidyr)
+library(plyr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+```
+###3. 2013-2015 Q1 United States Import/Export Data
+
+The last dataset I chose was US trade data, contributed by Jason Joseph. Jason
+was kind enough to provide a .csv file, so I'll load that in directly.
+
+```{r}
+trade_data <- read.csv("International Trade in Goods and Services.csv", 
+                          stringsAsFactors = FALSE)
+tbl_df(trade_data)
+```
+
+In spite of the fact that this is the smallest data set I am working with on this
+project, it is also probably the most challenging to tidy. There are blank rows,
+two header rows, and double row records.
+
+The easiest issue to deal with are the blank rows, so I'll delete them out first
+by subsetting out any row not blank in the X2013 column.
+
+```{r}
+trade_data <- subset(trade_data, X2013 != "")
+tbl_df(trade_data)
+```
+
+Now that the empty space has been eliminated, I'll turn my attention to fixing
+the fact that the observations span two columns. I can do this by filling in
+the same month as the one above it.
+
+```{r}
+trade_data$Period[c(3,5,7,9)] <- c("January", "February","March","April")
+tbl_df(trade_data)
+```
+
+These column names aren't very descriptive, but I can tell what they should be
+using context clues, so I will fix those now. This also allows me to fix the
+issue that there are two header rows. It creates another aspect of "untidyness"
+by combining two variables into one column, but I'm not really chaning the data,
+I'm just relabelling at this point.
+
+```{r}
+colnames(trade_data)[2] <- "goods_services"
+colnames(trade_data)[3:8] <- c("2013 Exports","2013 Imports","2014 Exports",
+                               "2014 Imports","2015 Exports", "2015 Imports")
+trade_data <- trade_data[2:9,]
+rownames(trade_data) <- 1:8
+tbl_df(trade_data)
+```
+
+
+I want to do three things here. First, I want to narrow and lengthen the data
+by eliminating the Year/Type columns and putting them in a variable field.
+Since this also constitutes an example of more than one variable in a field,
+I'll use separate to split them out using regex. Finally, the goods and services
+are swung out as column names.
+
+```{r}
+tidy_trade <- trade_data %>%
+                      gather("Year/Type", "Total", -Period, -goods_services)%>%  
+                      separate("Year/Type", 
+                                into = c("year", "import_export"), 
+                                sep = "[[:space:]]")%>%
+                      spread(goods_services, Total)
+tbl_df(tidy_trade)
+```
+
+It looks good, but I kind of went back and forth as to whether Goods and Services
+should be spread out as separate columns the way I did here. After all, it is just
+a two level categorical value, just like import/export. Should the same be done 
+with that variable?
+
+I decided no because it would require combining import/exports with goods and
+services. "Goods Imported" would be a column, for instance. While this would 
+be a nice tabular display of the data, it seems like it would violate the variable
+combination rule, so I abstained.
+
+However, there is a bit more work to be done. Since the csv contained commas, the values
+were imported as strings, therefore I am unable to compute at this point. The 
+commas also prevent me from coercing directly to numeric (I thought R might be
+able to figure this out, but I was wrong). In any event, it's a good opportunity to
+practice Regex a bit more.
+
+```{r}
+tidy_trade$'Goods ' <- as.numeric(str_replace(tidy_trade$'Goods ', ",", ""))
+tidy_trade$Services  <- as.numeric(str_replace(tidy_trade$Services , ",", ""))
+```
+
+Before I do the computations Jason inquired about, I'm going to split up imports
+and exports into two separate data frames to make the subsetting a little easier.
+
+```{r}
+exports <- subset(tidy_trade, import_export == 'Exports')
+imports <- subset(tidy_trade, import_export == 'Imports')
+```
+
+With that in hand, I can quickly and easily find the average accross months.
+
+```{r}
+#1. average goods exported for each month
+mean(exports$Goods)
+
+#2. avegage goods imported for each month
+mean(imports$Goods)
+
+#3. average services exported for each month
+mean(exports$Services)
+
+#4. average services imported for each month
+mean(imports$Services)
+```

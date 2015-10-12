@@ -49,12 +49,12 @@ cruz <- subset(gop, candidate == "Cruz" & !is.na(points))
 gg <- ggplot(data=trump, aes(x=Date, y=points))
 gg + geom_point()
 
-gg + geom_point(data=fiorina, colour ='red') + geom_point(data=rubio, colour='blue')
+gg + geom_point(data=bush, colour ='red') + geom_point(data=rubio, colour='blue')
 
-horse_race <- gg + geom_point(data=fiorina, colour ='red') + 
-geom_point(data=rubio, colour='blue') + 
-geom_point(data=trump, colour='gold') + 
-geom_point(data=carson, colour='green') + 
-geom_point(data=bush, colour='black')
+horse_race <- gg +  geom_point(data=fiorina, colour ='black') + 
+                    geom_point(data=rubio, colour='blue') + 
+                    geom_point(data=trump, colour='gold') + 
+                    geom_point(data=carson, colour='green') + 
+                    geom_point(data=bush, colour='red')
 
-#draw some vertical lines for the debates
+#draw some vertical lines for the debates, refactor/dry out that code above
