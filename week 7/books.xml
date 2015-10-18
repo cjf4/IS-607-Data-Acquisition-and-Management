@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<showbiz_books>
+    <book>
+        <title>Live From New York</title>
+        <author>
+            <name>James Andrew Miller</name>
+            <name>Tom Shales</name>
+        </author>
+        <year>2002</year>
+        <style>Oral History</style>
+    </book>
+    <book>
+        <title>The Late Shift: Letterman, Leno, and the Network Battle for the Night</title>
+        <author>
+            <name>Bill Carter</name>
+        </author>
+        <year>1994</year>
+        <style>Journalistic Account</style>
+    </book>
+    <book>
+        <title>The Kid Stays in the Picture</title>
+        <author>
+            <name>Robert Evans</name>
+        </author>
+        <year>1994</year>
+        <style>Memoir</style>
+    </book>
+</showbiz_books>

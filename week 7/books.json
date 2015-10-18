@@ -1,0 +1,20 @@
+{"showbiz books" :[
+    {
+        "title"     :   "Live From New York",
+        "year"      :   2002,
+        "author(s)" :   ["James Andrew Miller", "Tom Shales"],
+        "style"     :   "Oral History"
+    },
+    {
+        "title"     :   "The Late Shift: Letterman, Leno, and the Network Battle for the Night",
+        "year"      :   1994,
+        "author(s)" :   "Bill Carter",
+        "style"     :   "Journalistic Account"
+    },
+    {
+        "title"     :   "The Kid Stays in the Picture",
+        "year"      :   1994,
+        "author(s)" :   "Rober Evans",
+        "style"     :   "Memoir"
+    }]
+}
