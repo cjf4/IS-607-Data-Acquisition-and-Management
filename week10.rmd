@@ -1,0 +1,108 @@
+---
+title: "Week 10 Assignment"
+author: "Chris Fenton"
+date: "November 1, 2015"
+output: html_document
+---
+
+I'm going to work with the jsonlite package, as it combines sending the HTTP request
+and converting to json in one step. 
+
+```{r}
+library(jsonlite)
+```
+
+I'm going to be working with the NY Times Movie Reviews API. The documentation
+can be found [here](http://developer.nytimes.com/docs/movie_reviews_api/).
+
+Just to provide some sort of guiding question, I am going to be comparing Wes Anderson's
+movies to the Coen Brothers.
+
+First thing is to register for an authentication key. I did that, and will store it
+in a variable to make it easier to reuse.
+
+```{r}
+m_key <- "&api-key=24cf73bd0d79a879f2c726186680b1c7:4:73355908"
+```
+
+The next step is to build my request string in the form of a URI. Looking at the docs,
+I can see it version should always be v2. I know I want json, so that goes after the search
+part of the string. The question mark starts my query string, where I'll offer my search
+terms.
+
+```{r}
+cb_uri <- "http://api.nytimes.com/svc/movies/v2/reviews/search.json?query=joel+ethan+coen"
+```
+
+Next, I need to combine that with my authentication key, and send the request.
+
+```{r}
+coen_bros <- fromJSON(paste0(cb_uri, m_key))
+```
+
+The response object is a list of 4 items. The one I'm interested in is the results data frame,
+so I'll pull that out.
+
+```{r}
+coen_bros <- coen_bros$results
+```
+
+Now I just need to build another URI for the Wes Anderson Movies.
+
+```{r}
+wa_uri <- "http://api.nytimes.com/svc/movies/v2/reviews/search.json?query=wes+anderson"
+
+wes <- fromJSON(paste0(wa_uri, m_key))
+wes <- wes$results
+```
+
+
+If I look at the titles, I'll see that this search returns more than just movies that are by Wes Anderson.
+
+```{r}
+wes$display_title
+```
+
+So I'll isolate only the ones I know he directed.
+
+```{r}
+wes_df <- wes[1:8,]
+```
+
+Same thing for the Coen Brothers.
+
+```{r}
+coen_bros$display_title
+coen_df <- coen_bros[1:17,]
+```
+
+
+There are more columns than I need, so I'll build new data frames that are a little leaner.
+
+```{r}
+wes_df <- data.frame(title = wes_df$display_title, 
+                      rating = wes_df$mpaa_rating, 
+                      critics_pick = wes_df$critics_pick, 
+                      top1000 = wes_df$thousand_best)
+
+coen_df <- data.frame(title = coen_df$display_title, 
+                       rating = coen_df$mpaa_rating, 
+                       critics_pick = coen_df$critics_pick, 
+                       top1000 = coen_df$thousand_best)
+```
+
+Now I have clean, well formatted dataframes representing the NY Times opinion of each director.
+
+
+The NY Times doesn't do scores, which while maybe artistically appropriate, is inconvenient for data analysis. Really the only thing I have to work with are the critics_pick and top1000 variables, which are both binary.
+
+Comparing how many films of each were critics_pick yields this:
+
+```{r}
+table(coen_df$critics_pick)
+table(wes_df$critics_pick)
+```
+
+This shows the NY Times like the Coen Brothers movies more often than they do Wes Anderson's. I
+would agree with them on this.
+
