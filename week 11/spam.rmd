@@ -1,0 +1,155 @@
+---
+title: "Spam"
+author: "Chris Fenton"
+date: "November 22, 2015"
+output: html_document
+---
+
+The goal of this assignment is to take a corpus of emails that have been previously classified as either spam or not spam (often called "ham"), process the text of these emails, and apply unspervised statistical learning algorithms to automatically classify whether or not the emails are spam. The emails can be downloaded at [this link](https://spamassassin.apache.org/publiccorpus/).
+
+
+I will be using the following libraries, and will set the seed to 500 so the results are replicable.
+```{r}
+library(tm)
+library(caTools)
+library(RTextTools)
+
+set.seed(500)
+```
+
+First, I downloaded the spam, spam_2, easy_ham, and hard_ham corpuses and put them into their own subdirectories.
+
+Next, I built up vectors for each directory that contained the filenames of each text document.
+
+```{r}
+easy_h_files <- paste0("easy_ham/", list.files("easy_ham"))
+hard_h_files <- paste0("hard_ham/", list.files("hard_ham"))
+spam_files <- paste0("spam/", list.files("spam"))
+spam_2_files <- paste0("spam_2/", list.files("spam_2"))
+```
+
+
+I build a function to read in each file, which I will than apply to each filename gathered above.
+
+```{r}
+read_lines_string <- function(x) {
+  paste(readLines(x), collapse=" ")
+}
+
+easy_h_corp <- unlist(lapply(easy_h_files, read_lines_string))
+hard_h_corp <- unlist(lapply(hard_h_files, read_lines_string))
+spam_corp <- unlist(lapply(spam_files, read_lines_string))
+spam_2_corp <- unlist(lapply(spam_2_files, read_lines_string))
+```
+
+Now I have a character vector for each of the directories, where each item in the 
+vector is the text of an individual emails. I'll combine the two spam vectors and the two ham vectors.
+
+```{r}
+ham_corpus <- c(easy_h_corp, hard_h_corp)
+spam_corpus <- c(spam_corp, spam_2_corp)
+```
+
+Since the emails have already been classified, I will want to keep track of the actual classification.
+This is how I will measure the success of the different models. 1 will represent ham, 0 will represent spam.
+
+```{r}
+ham_id <- rep(1, length(ham_corpus))
+spam_id <- rep(0, length(spam_corpus))
+```
+
+
+Now that I have those two classification result vectors, I can combine them to build a big data frame
+with all the emails and the actual classification.
+
+```{r}
+ham_frame <- data.frame(text=ham_corpus, h_or_s=ham_id, stringsAsFactors = FALSE)
+spam_frame <- data.frame(text=spam_corpus, h_or_s=spam_id, stringsAsFactors = FALSE)
+emails <- rbind(ham_frame, spam_frame)
+```
+
+First bit of preprocessing to is to standardize the format.
+
+```{r}
+emails$text <- iconv(emails$text, to="UTF-8")
+```
+
+
+Other preprocessing on the email text will make the text slightly more consistent. I'll ignore
+case and remove punctuation. Also, I'll remove any stopwords, defined [here](http://jmlr.csail.mit.edu/papers/volume5/lewis04a/a11-smart-stop-list/english.stop).
+
+Finally, I'll stem all the words, removing suffixes and considering words with the same base
+to be the same, and unlist the vector so the Corpus function can use it.
+
+```{r}
+emails$text <- lapply(emails$text, tolower)
+emails$text <- lapply(emails$text, removePunctuation)
+emails$text <- lapply(emails$text, removeWords, stopwords("english"))
+emails$text <- lapply(emails$text, stemDocument)
+emails$text <- unlist(emails$text)
+```
+
+With my preprocessing done, I can use the Corpus function to build a corpus object.
+
+```{r}
+email_corp <- Corpus(VectorSource(emails$text))
+```
+
+With the corpus, I can build a document term matrix. I will set the sparsity to 97%.
+
+```{r}
+docterm_mat <- DocumentTermMatrix(email_corp)
+docterm_mat <- removeSparseTerms(docterm_mat, 0.97)
+```
+
+Now, using the RTextTools package, I can create a container. A container takes a document term matrix
+and handles the creation of training and testing sets. It also takes a label as input, which will be the actual
+classification from earlier. I'll use the first 3700 entires for training my model, and the last 1000 to test on.
+
+```{r}
+container <- create_container(docterm_mat, 
+                              trainSize = 1:3700, 
+                              testSize = 3701:4700, 
+                              labels = emails$h_or_s, 
+                              virgin = FALSE)
+```
+
+With my container build, I can start training different models on the training data and
+classifying the testing data. The three models I'll use are Support Vector Machines, Random Forest,
+and Maximum Entropy.
+
+```{r}
+
+svm_trainer <- train_model(container, "SVM")
+svm_output <- classify_model(container, svm_trainer)
+
+tree_trainer <- train_model(container, "TREE")
+tree_output <- classify_model(container, tree_trainer)
+
+maxent_trainer <- train_model(container, "MAXENT")
+maxent_output <- classify_model(container, maxent_trainer)
+```
+
+Now that the models have done their work, I can build a data frame that contains each model's
+prediction and the actual result of whether each email was ham or spam.
+
+```{r}
+model_performance <- data.frame(
+                        correct_label = emails$h_or_s[3701:4700],
+                        svm = as.character(svm_output[,1]),
+                        tree = as.character(tree_output[,1]),
+                        maxent = as.character(maxent_output[,1]),
+                        stringsAsFactors = FALSE)
+```
+
+Using this dataframe to compare each model's prediction to the actual classification,
+I'll build tables table that measure which model peformed the best.
+
+```{r}
+prop.table(table(model_performance$correct_label == model_performance$svm))
+prop.table(table(model_performance$correct_label == model_performance$tree))
+prop.table(table(model_performance$correct_label == model_performance$maxent))
+```
+
+So in this application, it looks like Random Forest peformed the best of the three models. All 3 seemed to have 
+performed extremely well.
