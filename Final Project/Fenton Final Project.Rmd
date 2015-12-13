@@ -1,0 +1,8 @@
+---
+title: 'IS607 Final Project: School Finances'
+author: "Chris Fenton"
+date: "December 13, 2015"
+output: html_document
+---
+
+
