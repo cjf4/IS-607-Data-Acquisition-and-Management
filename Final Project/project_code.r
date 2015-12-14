@@ -50,7 +50,7 @@ state1 <- state1[[9]]
 
 #building 01-55 character vector for url query
 
-state_ids <- as.character(rep(1:55))
+state_ids <- as.character(rep(1:56))
 state_ids <- unlist(lapply(state_ids, function(x) if(nchar(x) < 2) paste0("0", x) else x ))
 
 #base url
@@ -78,9 +78,24 @@ data_extract <- function(df) {
 }
 
 df_List <- lapply(state_ids, per_data_dl)
-extracted <- lapply(df_list, data_extract)
+extracted <- lapply(df_List, data_extract)
 math_data <- ldply(extracted, data.frame)
 
 ###Finance Data
 fed_data <- read.csv('https://raw.githubusercontent.com/cjf4/IS-607-Data-Acquisition-and-Management/master/Final%20Project/elsec11.csv', stringsAsFactors = FALSE)
 
+#sum pivot
+finance_sum <- group_by(fed_data, STATE)
+summed_fin <- summarise(finance_sum, sum_rev = sum(TOTALREV), sum_exp = sum(TOTALEXP), total_enroll = sum(V33))
+
+#read in state key
+state_key <- read.csv('https://raw.githubusercontent.com/cjf4/IS-607-Data-Acquisition-and-Management/master/Final%20Project/state_key.csv', stringsAsFactors = FALSE)
+
+#attach state name to summarized data
+school_finance_per <- merge(summed_fin, state_key, by.x = "STATE", by.y = "state_id")
+
+#attach sum data to performance data
+school_finance_per <- merge(school_finance_per, math_data, by = "state_name")
+
+#create dollars per pupil for each state
+school_finance_per$exp_per_pup <- school_finance_per$sum_exp / school_finance_per$total_enroll

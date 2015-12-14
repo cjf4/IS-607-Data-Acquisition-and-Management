@@ -88,30 +88,47 @@ https://inventory.data.gov/api/action/datastore_search_sql?sql=SELECT * from "89
 
 mentioned in [the API page](https://inventory.data.gov/api/1/util/snippet/api_info.html?resource_id=89fec729-9ab9-43d5-8dcd-e65dfab2a17c&datastore_root_url=https%3A%2F%2Finventory.data.gov%2Fapi%2Faction), which also resulted in a 409 error. It was at that point that I decided that the API was not reliable enough for me to work with, even if it (likely) included some mistakes on my end.
 
-*Second Attempt*
+*Alternate Math Performance Data Source*
 
+After searching for another source for data that had Math peformance listed by state, I found a promising set at the National Center for Education Statistics (NCES), a sub organization of the US Department of Education. Each state had a summary performance page for a variety of subjects and grade levels. [Here is New York's page](https://nces.ed.gov/programs/stateprofiles/sresult.asp?mode=full&displaycat=7&s1=36). 
+
+Fortunately, this page included 8th Grade Math peformance by state, and the data was from 2011 (thus explaining why I chose 2011 financial data above). Of all the subjects, Math was the most recently collected data, which was a little curious since 2011 was almost 5 years ago. C'est la vie (when it comes to beauracracies, anyway).
+
+The other attractive thing about these web pages was that the URLs followed a recognizable pattern for each state: two digits, from 01 to 55 (some
+of the intermittent two digits did not return a state, for some reason, but that did not cause a problem). What this allowed me to do was build
+up a character vector of "01" to "55", which I would go on to use to construct URLs for each state's page by pasting to a "base" url.
 
 ```{r warning=FALSE}
-#building 01-55 character vector for url query
-
 state_ids <- as.character(rep(1:55))
 state_ids <- unlist(lapply(state_ids, function(x) if(nchar(x) < 2) paste0("0", x) else x ))
 
-#base url
 url <- 'https://nces.ed.gov/programs/stateprofiles/sresult.asp?mode=full&displaycat=7&s1='
+```
 
+I started with the first state, Alabama, and worked to figure out a repeatable pattern for downloading the data from each URL. With the pattern determined, I could write functions and simply apply them to each URL.
 
-#function to go through above vector and download all the state data
-#takes one two digit character code (01-55) as argument
+My first function takes a two digit character vector and creates a URL and uses the getURL function to issue a HTTP get request to the server. With the request, it converts all the HTML tables to data frames using the readHTMLTable function. Finally, it pulls
+the germane data frame out and returns it.
+
+```{r warning=FALSE}
+#takes a string as an argument
+
 per_data_dl <- function(state_id) {
   state_uri <- getURL(paste0(url, state_id))
   state_table <- readHTMLTable(state_uri, stringsAsFactors = FALSE)
   state_df <- state_table[[9]]
   return(state_df)
 }
+```
 
-#function to extract correct data from downloaded data frame
+*This part jumps ahead to tranformation a little bit, but I thought it made more sense to include in immediate succesion to the above work*
 
+For each state's dataframe, the object returned in the above function, I would need to clean up the data a little bit so I could
+get it into a coherent data frame. The state was identified as one of the column names in the data frame, so I was able to easily
+obtain that. Next, I looked for all of the relevant math data, and stored each in a variable. Finally, I took all the created
+variables and created a one observation data frame for each state.
+
+```{r warning=FALSE}
 data_extract <- function(df) {
   state_name <- colnames(df)[3]
   math_scale <- as.integer(df[6,3])
@@ -120,9 +137,39 @@ data_extract <- function(df) {
   math_adv <- as.integer(df[9,3])
   return(data.frame(state_name, math_scale, math_basic, math_pro, math_adv))
 }
+```
 
+With the above two functions, I could call them on my list of state numbers created earlier.
+
+```{r warning=FALSE}
 df_list <- lapply(state_ids, per_data_dl)
 extracted <- lapply(df_list, data_extract)
+```
+
+Finally, since each data frame was created with the same function, it was easy to combine them into one big data frame with the performance data. The V3's were the mysterious non specific states, which didn't provide any problems.
+
+```{r}
 math_data <- ldply(extracted, data.frame)
 head(math_data)
+```
+
+##Transformations
+
+```{r}
+#sum pivot
+finance_sum <- group_by(fed_data, STATE)
+summed_fin <- summarise(finance_sum, sum_rev = sum(TOTALREV), sum_exp = sum(TOTALEXP), total_enroll = sum(V33))
+
+#read in state key
+state_key <- read.csv('https://raw.githubusercontent.com/cjf4/IS-607-Data-Acquisition-and-Management/master/Final%20Project/state_key.csv', stringsAsFactors = FALSE)
+
+#attach state name to summarized data
+school_finance_per <- merge(summed_fin, state_key, by.x = "STATE", by.y = "state_id")
+
+#attach sum data to performance data
+school_finance_per <- merge(school_finance_per, math_data, by = "state_name")
+
+#create dollars per pupil for each state
+school_finance_per$exp_per_pup <- school_finance_per$sum_exp / school_finance_per$total_enroll
+
 ```
