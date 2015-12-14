@@ -5,4 +5,124 @@ date: "December 13, 2015"
 output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
 
+My motivation for this project was to gain some insight into public education in the United States.
+Specifically, I want to see if finances, whether it's revenue or expenditure, act as a predictor for school performance.
+
+Libraries used:
+
+```{r warning=FALSE}
+library(jsonlite)
+library(httr)
+library(RCurl)
+library(XML)
+library(plyr)
+library(dplyr)
+library(reshape2)
+```
+
+
+##Acquisition
+
+###School Financial Data
+
+The finance data for every public school district in the USA was avaialable at the [United States Censu Bureau's website.](http://www2.census.gov/govs/school/) I began with the 2013 data, which is the most recent dataset, but wound up switching to the 2011 data, for reasons that will be elucidated on in due course. The dataset description for 2011 can be found (here.)[http://www2.census.gov/govs/school/school11doc.pdf]
+
+The data provides an almost overwhelming level of detail in which it breaks down different revenue streams and expenditure categories. Federal, State, and Local Revenue categories are provided, with another level of detail below each. The second group of data elements are Expenditures, which include totals and detail level for categories such as instructor salaries, benefit programs, capital outlays, administration, and more. Finally, the data set
+includes some ratios using the first two categories, such as % revenue from federal sources and spending per pupil.
+
+The data is above in the above directory in a relation format, but was an excel spreadsheet. CSV files are a little
+bit more predictable to read into R, so I downloaded the file, converted it to csv, and read it into R.
+
+```{r}
+fed_data <- read.csv('https://raw.githubusercontent.com/cjf4/IS-607-Data-Acquisition-and-Management/master/Final%20Project/elsec11.csv', 
+                     stringsAsFactors = FALSE)
+tbl_df(fed_data)
+```
+
+Simple enough. However, in the context of my desired analysis, the above served as explanatory variables. I want to 
+measure performance as my response variable, so that would have to come elsewhere.
+
+###School Performance Data
+
+*First Attempt*
+
+The first place I looked was the federal Department of Education. The DOE provides data in both a relational data files and APIs. An educational professional I consulted with had mentioned that 9th grade algebra scores are often used as a KPI (Key Performanc Metric) in education. [This link](https://inventory.data.gov/dataset/cee9d558-313f-41f7-8955-1d6e4df3a2dc/resource/0f696b5b-129c-4a83-93af-662f5f8162f4) appeared promising, but wound up having a couple of issues that forced me to explore other options.
+
+The first was that there was no apparent dataset description. The above link contained a truncated "dataset abstract", but after some searching, I was not able to find the full description. While some of the columns seemed to be self evident, some were not. It would be impossible to rely on this data without a working knowledge of what
+the data represented.
+
+The second issue was with the web API. At first glance, the API appeared to be clean, simple, and allow the powerful option of including SQL queries as part of the http request. The API documentation can be [found here](https://inventory.data.gov/api/1/util/snippet/api_info.html?resource_id=89fec729-9ab9-43d5-8dcd-e65dfab2a17c&datastore_root_url=https%3A%2F%2Finventory.data.gov%2Fapi%2Faction).
+
+However, separate attempts to access the data via all the mentioned methods proved unsuccessful, usually resulting in 409 errors (access forbidden).
+
+
+I tried post a JSON object as a request, which is mentioned as an option on the API page, however this did not work.
+
+```{r}
+
+req <- POST('https://inventory.data.gov/api/action/datastore_search',
+            body = "{
+                        resource_id: 'b4e7f148-3afc-4782-84a3-dfaca3156e8b', 
+                        limit: 5, 
+                        q: 'jones' 
+                     }",
+            encode = 'json'
+
+          
+)
+```
+
+A URL with an SQL query received a 409 error as well.
+
+```{r}
+req <- POST("https://inventory.data.gov/api/action/datastore_search_sql?api_key=W7KRCyAf29uIuiklIvJaSgJliE6GrRpR01ObMUh6&sql=SELECT * from 'b4e7f148-3afc-4782-84a3-dfaca3156e8b' WHERE 'leanm11' LIKE 'jones'")
+```
+
+Suspicious, I used the SQL example:
+
+https://inventory.data.gov/api/action/datastore_search_sql?sql=SELECT * from "89fec729-9ab9-43d5-8dcd-e65dfab2a17c" WHERE title LIKE 'jones'
+
+mentioned in [the API page](https://inventory.data.gov/api/1/util/snippet/api_info.html?resource_id=89fec729-9ab9-43d5-8dcd-e65dfab2a17c&datastore_root_url=https%3A%2F%2Finventory.data.gov%2Fapi%2Faction), which also resulted in a 409 error. It was at that point that I decided that the API was not reliable enough for me to work with, even if it (likely) included some mistakes on my end.
+
+*Second Attempt*
+
+
+```{r warning=FALSE}
+#building 01-55 character vector for url query
+
+state_ids <- as.character(rep(1:55))
+state_ids <- unlist(lapply(state_ids, function(x) if(nchar(x) < 2) paste0("0", x) else x ))
+
+#base url
+url <- 'https://nces.ed.gov/programs/stateprofiles/sresult.asp?mode=full&displaycat=7&s1='
+
+
+#function to go through above vector and download all the state data
+#takes one two digit character code (01-55) as argument
+per_data_dl <- function(state_id) {
+  state_uri <- getURL(paste0(url, state_id))
+  state_table <- readHTMLTable(state_uri, stringsAsFactors = FALSE)
+  state_df <- state_table[[9]]
+  return(state_df)
+}
+
+#function to extract correct data from downloaded data frame
+
+data_extract <- function(df) {
+  state_name <- colnames(df)[3]
+  math_scale <- as.integer(df[6,3])
+  math_basic <- as.integer(df[7,3])
+  math_pro <- as.integer(df[8,3])
+  math_adv <- as.integer(df[9,3])
+  return(data.frame(state_name, math_scale, math_basic, math_pro, math_adv))
+}
+
+df_list <- lapply(state_ids, per_data_dl)
+extracted <- lapply(df_list, data_extract)
+math_data <- ldply(extracted, data.frame)
+head(math_data)
+```
