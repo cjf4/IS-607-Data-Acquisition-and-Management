@@ -29,13 +29,13 @@ library(reshape2)
 
 ###School Financial Data
 
-The finance data for every public school district in the USA was avaialable at the [United States Censu Bureau's website.](http://www2.census.gov/govs/school/) I began with the 2013 data, which is the most recent dataset, but wound up switching to the 2011 data, for reasons that will be elucidated on in due course. The dataset description for 2011 can be found (here.)[http://www2.census.gov/govs/school/school11doc.pdf]
+The finance data for every public school district in the USA was avaialable at the [United States Censu Bureau's website.](http://www2.census.gov/govs/school/) I began with the 2013 data, which is the most recent dataset, but wound up switching to the 2011 data, for reasons that will be elucidated on in due course. The dataset description for 2011 can be found [here.](http://www2.census.gov/govs/school/school11doc.pdf)
 
-The data provides an almost overwhelming level of detail in which it breaks down different revenue streams and expenditure categories. Federal, State, and Local Revenue categories are provided, with another level of detail below each. The second group of data elements are Expenditures, which include totals and detail level for categories such as instructor salaries, benefit programs, capital outlays, administration, and more. Finally, the data set
+The data provides an almost overwhelming level of detail in the way it breaks down different revenue streams and expenditure categories. Federal, State, and Local Revenue categories are provided, with another level of detail below each. The second group of data elements are Expenditures, which include totals and detail level for categories such as instructor salaries, benefit programs, capital outlays, administration, and more. Finally, the data set
 includes some ratios using the first two categories, such as % revenue from federal sources and spending per pupil.
 
-The data is above in the above directory in a relation format, but was an excel spreadsheet. CSV files are a little
-bit more predictable to read into R, so I downloaded the file, converted it to csv, and read it into R.
+The data in the above directory is in a relational format, but as an excel spreadsheet. CSV files are a little
+bit more predictable to read into R, so I downloaded the file, converted it to csv, and loaded it into R.
 
 ```{r}
 fed_data <- read.csv('https://raw.githubusercontent.com/cjf4/IS-607-Data-Acquisition-and-Management/master/Final%20Project/elsec11.csv', 
@@ -48,11 +48,11 @@ measure performance as my response variable, so that would have to come elsewher
 
 ###School Performance Data
 
-*First Attempt*
+####First Attempt
 
-The first place I looked was the federal Department of Education. The DOE provides data in both a relational data files and APIs. An educational professional I consulted with had mentioned that 9th grade algebra scores are often used as a KPI (Key Performanc Metric) in education. [This link](https://inventory.data.gov/dataset/cee9d558-313f-41f7-8955-1d6e4df3a2dc/resource/0f696b5b-129c-4a83-93af-662f5f8162f4) appeared promising, but wound up having a couple of issues that forced me to explore other options.
+The first place I looked was the federal Department of Education. The DOE provides data in both relational data files and APIs. An education professional I consulted had mentioned that 9th grade algebra scores are often used as a KPI (Key Performanc Metric) in education. [This link](https://inventory.data.gov/dataset/cee9d558-313f-41f7-8955-1d6e4df3a2dc/resource/0f696b5b-129c-4a83-93af-662f5f8162f4) appeared promising, but wound up having a couple of issues that forced me to explore other options.
 
-The first was that there was no apparent dataset description. The above link contained a truncated "dataset abstract", but after some searching, I was not able to find the full description. While some of the columns seemed to be self evident, some were not. It would be impossible to rely on this data without a working knowledge of what
+The first issue was that there was no apparent dataset description. The above link contained a truncated "dataset abstract", but after some searching, I was not able to find the full description. While some of the columns seemed to be self evident, some were not. It would be impossible to rely on this data without a working knowledge of what
 the data represented.
 
 The second issue was with the web API. At first glance, the API appeared to be clean, simple, and allow the powerful option of including SQL queries as part of the http request. The API documentation can be [found here](https://inventory.data.gov/api/1/util/snippet/api_info.html?resource_id=89fec729-9ab9-43d5-8dcd-e65dfab2a17c&datastore_root_url=https%3A%2F%2Finventory.data.gov%2Fapi%2Faction).
@@ -88,9 +88,9 @@ https://inventory.data.gov/api/action/datastore_search_sql?sql=SELECT * from "89
 
 mentioned in [the API page](https://inventory.data.gov/api/1/util/snippet/api_info.html?resource_id=89fec729-9ab9-43d5-8dcd-e65dfab2a17c&datastore_root_url=https%3A%2F%2Finventory.data.gov%2Fapi%2Faction), which also resulted in a 409 error. It was at that point that I decided that the API was not reliable enough for me to work with, even if it (likely) included some mistakes on my end.
 
-*Alternate Math Performance Data Source*
+####Alternate Math Performance Data Source
 
-After searching for another source for data that had Math peformance listed by state, I found a promising set at the National Center for Education Statistics (NCES), a sub organization of the US Department of Education. Each state had a summary performance page for a variety of subjects and grade levels. [Here is New York's page](https://nces.ed.gov/programs/stateprofiles/sresult.asp?mode=full&displaycat=7&s1=36). 
+After searching for another source of data that had Math performance listed by state, I found a promising set at the National Center for Education Statistics (NCES), a sub organization of the US Department of Education. Each state had a summary performance page for a variety of subjects and grade levels. [Here is New York's page](https://nces.ed.gov/programs/stateprofiles/sresult.asp?mode=full&displaycat=7&s1=36). 
 
 Fortunately, this page included 8th Grade Math peformance by state, and the data was from 2011 (thus explaining why I chose 2011 financial data above). Of all the subjects, Math was the most recently collected data, which was a little curious since 2011 was almost 5 years ago. C'est la vie (when it comes to beauracracies, anyway).
 
@@ -111,8 +111,6 @@ My first function takes a two digit character vector and creates a URL and uses 
 the germane data frame out and returns it.
 
 ```{r warning=FALSE}
-#takes a string as an argument
-
 per_data_dl <- function(state_id) {
   state_uri <- getURL(paste0(url, state_id))
   state_table <- readHTMLTable(state_uri, stringsAsFactors = FALSE)
@@ -123,7 +121,7 @@ per_data_dl <- function(state_id) {
 
 *This part jumps ahead to tranformation a little bit, but I thought it made more sense to include in immediate succesion to the above work*
 
-For each state's dataframe, the object returned in the above function, I would need to clean up the data a little bit so I could
+For each state's dataframe (the object returned in the above function), I would need to clean up the data a little bit so I could
 get it into a coherent data frame. The state was identified as one of the column names in the data frame, so I was able to easily
 obtain that. Next, I looked for all of the relevant math data, and stored each in a variable. Finally, I took all the created
 variables and created a one observation data frame for each state.
@@ -155,17 +153,17 @@ head(math_data)
 
 ##Transformations
 
-Now that I had everything (or almost everything, as will become apparent) in R, I was reading to starting getting my data in a workable format.
+Now that I had everything (or almost everything, as will become apparent) in R, I was ready to start getting my data in a workable format.
 
-The first task was to summarize the finance data. Each observation in the finance data set was a district, but I am comparing states. So, I needed to sum up each variable that I cared about by state. Using the group_by and summarise functions from dplyr,
-this was painless. I decided to just look at the total revenue, total expenditures to keep things simple. I wasn't able to use the provided ratios, since they were by district. This would mean I would be taking the average of an average and not weighting appropriately. Instead, I summed the total enrollment figure for each each district, giving me the total enrollment for each state.
+The first task was to summarize the finance data. Each observation in the finance data set was a district, but I was comparing states. So, I needed to sum up each variable that I cared about by state. Using the group_by and summarise functions from dplyr,
+this was painless. I decided to just look at the total revenue and total expenditures to keep things simple. I wasn't able to use the provided ratios, since they were by district. This would mean I would be taking the average of an average and not weighting appropriately. Instead, I summed the total enrollment figure for each each district, giving me the total enrollment for each state.
 
 ```{r}
 finance_sum <- group_by(fed_data, STATE)
 summed_fin <- summarise(finance_sum, sum_rev = sum(TOTALREV), sum_exp = sum(TOTALEXP), total_enroll = sum(V33))
 ```
 
-However at this point it became apparent that the State variable were not state names, but instead state codes from the [data definition file]([http://www2.census.gov/govs/school/school11doc.pdf]). Using the file, I created .csv file and read it in to R.
+However at this point it became apparent that the State variable did not contain state names, but instead state codes from the [data definition file]([http://www2.census.gov/govs/school/school11doc.pdf]). Using the file, I created .csv file and read it in to R.
 
 ```{r}
 state_key <- read.csv('https://raw.githubusercontent.com/cjf4/IS-607-Data-Acquisition-and-Management/master/Final%20Project/state_key.csv', stringsAsFactors = FALSE)
@@ -176,7 +174,7 @@ This data frame served as a key of sorts, and allowed me to attach the name to e
 school_finance_per <- merge(summed_fin, state_key, by.x = "STATE", by.y = "state_id")
 ```
 
-Again, using the merege function, I was finally able to combine by financial data with my performance data.
+Again, using the merge function, I was finally able to combine by financial data with my performance data.
 ```{r}
 school_finance_per <- merge(school_finance_per, math_data, by = "state_name")
 ```
@@ -209,7 +207,7 @@ And the least?
 tail(top_spenders <- school_finance_per[order(school_finance_per$exp_per_pup, decreasing = TRUE),])
 ```
 
-Now it's time to look at the relationship between spending and math performance. First, we will look at expenditure per pupil against basic math proficiency, which is defined as "implies partial mastery of prerequisite knowledge and skills that are fundamental for proficient work at each grade."
+Now it's time to look at the relationship between spending and math performance. We will look at expenditure per pupil against basic math proficiency, which is defined as "implies partial mastery of prerequisite knowledge and skills that are fundamental for proficient work at each grade."
 
 ```{r}
 plot(school_finance_per$exp_per_pup, school_finance_per$math_basic, xlab = "Expenditure per pupil", ylab = "Basic Math Profiency Percentage")
@@ -217,7 +215,7 @@ plot(school_finance_per$exp_per_pup, school_finance_per$math_basic, xlab = "Expe
 
 We can see a clear linear trend of correlation between expenditure and Basic Math proficiency. However, of interest is the outlier on this graph, that spends more per pupil than any other state/district, yet achieves the worst performance, both by wide margins. From the above listing of highest spending states, we know this is Washington DC.
 
-Since their appears to be a linear relationship, I will try to fit a regression line using the two sets of data.
+Since there appears to be a linear relationship, I will try to fit a regression line using the two sets of data.
 
 ```{r}
 basic_math.lm <- lm(math_basic ~ exp_per_pup, school_finance_per)
@@ -226,7 +224,7 @@ summary(basic_math.lm)
 
 Interesting. The regression line actually predicts a *negative* relationship between the two variables. Washington DC must be throwing off the model.
 
-I'll try again, only this time exclude Washington DC.
+I'll try again, only this time excluding Washington DC.
 
 ```{r}
 schools_no_DC <- subset(school_finance_per, math_basic > 50)
@@ -234,6 +232,6 @@ basic_math.lm <- lm(math_basic ~ exp_per_pup, schools_no_DC)
 summary(basic_math.lm)
 ```
 
-That gives us an positive relationship. For every additional 1,000 spent per pupil, we would predict a state's percentage of students who achieve basic profiecieny to increase by .87. However, the R-squared on this model is quite low, and this is not establishing a causal relationship, so it would be imprudent to advise states to start pouring money into their education budgets.
+That gives us a positive relationship. For every additional 1,000 spent per pupil, we would predict a state's percentage of students who achieve basic profiecieny to increase by .87. However, the R-squared on this model is quite low, and this is not establishing a causal relationship, so it would be imprudent to advise states to start pouring money into their education budgets (on this analysis alone, at least).
 
-The curious case of Washington DC illustrates a need for futher analysis. No other state spend so much, yet get so little for their money. This is likely related to the fact that Washington DC is exclusively an urban district. Other inner city districts that may be otherwise comparable to Washington would have their results mixed in with rural and suburban districts. If nothing else, this illustrates the need to study inner city districts separately from the rest of the country.
+The curious case of Washington DC illustrates a need for futher analysis. No other state spent so much, yet get so little for their money. This is likely related to the fact that Washington DC is exclusively an urban district. Other inner city districts that may be otherwise comparable to Washington would have their results mixed in with rural and suburban districts. If nothing else, this illustrates the need to study inner city districts separately from the rest of the country.
